@@ -107,6 +107,23 @@ Outputs the Monte Carlo win/final/semi probabilities, historical patterns, and a
 
 ---
 
+## 🔴 Live update (in-tournament)
+
+`forecast.py` now ingests results already played from `wc_2026_results.csv`
+(`group,team1,score1,score2,team2,date`). If the file is absent it falls back to the
+exact pre-tournament forecast above.
+
+Live results are used **two ways**:
+
+1. **Locked group games.** A played match keeps its real scoreline in every one of the
+   50,000 simulations; only unplayed group games are still simulated.
+2. **Dynamic Elo.** Each played result nudges that team's Elo via the standard World
+   Football Elo update (`We = 1/(1+10^(−Δ/400))`, K=60 scaled by goal margin, +100 home
+   advantage for hosts), so current form flows into the knockout-stage sims too.
+
+After matchday 1 (20 games, Groups A–J), Spain's 0–0 vs Cape Verde (−27 Elo) and
+Argentina's 3–0 (Messi hat-trick) flip the favourite: **Argentina 24.6%**, Spain 19.7%.
+
 ## ⚠️ Caveats
 
 - **High variance.** A 24.7% favourite *loses* the tournament ~75% of the time. This is a

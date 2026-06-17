@@ -1,11 +1,17 @@
 """
-2026 FIFA World Cup forecast.
+2026 FIFA World Cup forecast — LIVE / IN-TOURNAMENT edition.
 - Historical analysis from wc_all_editions.csv
 - Strength model: current World Football Elo (June 2026) where known, else mapped from FIFA rank
+- LIVE: actual matchday results (wc_2026_results.csv) are ingested two ways:
+    (1) played group matches are LOCKED to their real scoreline (only unplayed games simulate)
+    (2) every played result nudges that team's Elo via the standard World Football Elo
+        update (goal-difference-weighted K, home advantage for hosts) so current form
+        propagates into the knockout-stage simulations, not just the group table.
 - Monte Carlo: real group draw -> top2 + 8 best thirds -> seeded knockout, Poisson goals model
 """
 import numpy as np
 import pandas as pd
+import os
 from collections import defaultdict
 
 rng = np.random.default_rng(42)
@@ -38,6 +44,48 @@ HOSTS = {"USA", "Mexico", "Canada"}
 HOST_BONUS = 35  # modest home advantage, applied in matches
 
 team_elo = dict(zip(teams["team"], teams["elo"]))
+elo_pre = dict(team_elo)  # snapshot before live updates, for reporting
+
+# --- LIVE RESULTS INGESTION -------------------------------------------------
+# wc_2026_results.csv holds every match already played (group,team1,score1,score2,team2,date).
+# Missing file -> behaves exactly like the pre-tournament forecast.
+RESULTS_FILE = "wc_2026_results.csv"
+if os.path.exists(RESULTS_FILE):
+    results = pd.read_csv(RESULTS_FILE)
+else:
+    results = pd.DataFrame(columns=["group", "team1", "score1", "score2", "team2", "date"])
+
+# Index played results by unordered group pair so the group sim can look them up and lock them.
+played = {}   # frozenset({a,b}) -> (team1, score1, score2, team2)
+for _, r in results.iterrows():
+    played[frozenset((r["team1"], r["team2"]))] = (r["team1"], int(r["score1"]),
+                                                   int(r["score2"]), r["team2"])
+
+# (1) Dynamic Elo update from played results — standard World Football Elo method.
+#     We_A = 1 / (1 + 10^(-dr/400)); dr = Elo gap (+100 home advantage for a host at home).
+#     K = 60 (World Cup weight) scaled up by margin of victory; zero-sum between the two teams.
+ELO_K0 = 60.0
+ELO_HOME_ADV = 100.0
+def _margin_k(k0, gd):
+    gd = abs(gd)
+    if gd <= 1:  return k0
+    if gd == 2:  return k0 * 1.5
+    if gd == 3:  return k0 * 1.75
+    return k0 * (1.75 + (gd - 3) / 8.0)
+
+for _, r in results.iterrows():
+    a, b = r["team1"], r["team2"]
+    ga, gb = int(r["score1"]), int(r["score2"])
+    ra = team_elo[a] + (ELO_HOME_ADV if a in HOSTS else 0.0)
+    rb = team_elo[b] + (ELO_HOME_ADV if b in HOSTS else 0.0)
+    we_a = 1.0 / (1.0 + 10 ** (-(ra - rb) / 400.0))
+    wa = 1.0 if ga > gb else (0.0 if ga < gb else 0.5)
+    k = _margin_k(ELO_K0, ga - gb)
+    delta = k * (wa - we_a)
+    team_elo[a] += delta
+    team_elo[b] -= delta
+
+teams["elo"] = teams["team"].map(team_elo)
 team_group = dict(zip(teams["team"], teams["group"]))
 team_conf = dict(zip(teams["team"], teams["confederation"]))
 groups = defaultdict(list)
@@ -88,7 +136,15 @@ while done < N:
         for i in range(len(gteams)):
             for j in range(i + 1, len(gteams)):
                 a, b = gteams[i], gteams[j]
-                ga, gb = sim_match_goals(a, b, n)
+                key = frozenset((a, b))
+                if key in played:
+                    # LIVE: lock the real scoreline across every simulation.
+                    t1, s1, s2, t2 = played[key]
+                    sa, sb = (s1, s2) if a == t1 else (s2, s1)
+                    ga = np.full(n, sa, dtype=int)
+                    gb = np.full(n, sb, dtype=int)
+                else:
+                    ga, gb = sim_match_goals(a, b, n)
                 a_win = ga > gb; b_win = gb > ga; draw = ga == gb
                 pts[a] += np.where(a_win, 3, np.where(draw, 1, 0))
                 pts[b] += np.where(b_win, 3, np.where(draw, 1, 0))
@@ -207,7 +263,21 @@ res = pd.DataFrame(rows, columns=["team","conf","grp","elo","win%","final%","sem
 res = res.sort_values("win%", ascending=False).reset_index(drop=True)
 
 pd.set_option("display.width", 200)
-print("\n=== 2026 WORLD CUP — MONTE CARLO FORECAST ({} sims) ===".format(N))
+
+# ---------------- LIVE INGESTION REPORT ----------------
+print("\n=== LIVE RESULTS INGESTED ===")
+print(f"Matches played and locked in: {len(results)} (group stage)")
+if len(results):
+    mov = sorted(((t, team_elo[t] - elo_pre[t]) for t in elo_pre),
+                 key=lambda x: -abs(x[1]))
+    print("Biggest Elo swings from live form (post − pre):")
+    for t, d in mov[:14]:
+        if abs(d) < 0.5:
+            continue
+        print(f"   {t:<14} {elo_pre[t]:7.0f} -> {team_elo[t]:7.0f}  ({d:+5.1f})")
+
+_mode = "live-updated" if len(results) else "pre-tournament"
+print("\n=== 2026 WORLD CUP — MONTE CARLO FORECAST ({} sims, {}) ===".format(N, _mode))
 print(res.head(16).to_string(index=False, float_format=lambda x: f"{x:5.1f}"))
 
 print("\nTotal win% (sanity, should be ~100):", round(res["win%"].sum(),1))
@@ -247,7 +317,7 @@ top4 = res.sort_values("semi%", ascending=False).head(4)["team"].tolist()
 finalists = res.sort_values("final%", ascending=False).head(2)["team"].tolist()
 champ = res.sort_values("win%", ascending=False).head(1)["team"].iloc[0]
 
-print("\n\n=== VERDICT ===")
+print("\n\n=== VERDICT (model, live-updated) ===")
 print("Predicted SEMI-FINALISTS (top 4):")
 for t in top4:
     print(f"   {FLAG.get(t,'  ')}  {t:<11} ({pct(semi_counts,t):4.1f}% to reach semis)")
@@ -255,3 +325,22 @@ print("\nPredicted FINAL:")
 print(f"   {FLAG.get(finalists[0])}  {finalists[0]}  vs  {FLAG.get(finalists[1])}  {finalists[1]}")
 print("\nPredicted CHAMPION:")
 print(f"   {FLAG.get(champ)}  {champ}  ({pct(win_counts,champ):.1f}% win probability)")
+
+# ---------------- COMPARISON vs USER PREDICTION ----------------
+USER_SEMIS = ["Spain", "Argentina", "France", "England"]
+USER_FINAL = ["Spain", "Argentina"]
+USER_CHAMP = "Spain"
+
+print("\n\n=== YOUR PREDICTION vs MODEL ===")
+print("Your semi-finalists:", ", ".join(USER_SEMIS))
+print("Model semi-finalists:", ", ".join(top4))
+hit = set(USER_SEMIS) & set(top4)
+print(f"   -> agree on {len(hit)}/4: {', '.join(sorted(hit))}")
+for t in USER_SEMIS:
+    print(f"      {t:<11} model semi-prob {pct(semi_counts,t):4.1f}% | win-title {pct(win_counts,t):4.1f}%")
+print(f"\nYour final:  {USER_FINAL[0]} vs {USER_FINAL[1]}")
+print(f"Model final: {finalists[0]} vs {finalists[1]}")
+print(f"\nYour champion:  {USER_CHAMP} ({pct(win_counts,USER_CHAMP):.1f}% in model)")
+print(f"Model champion: {champ} ({pct(win_counts,champ):.1f}%)")
+verdict = "ALIGNS with the model" if champ == USER_CHAMP else "DIFFERS from the model"
+print(f"   -> Your champion pick {verdict}.")

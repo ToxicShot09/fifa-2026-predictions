@@ -107,22 +107,28 @@ Outputs the Monte Carlo win/final/semi probabilities, historical patterns, and a
 
 ---
 
-## 🔴 Live update (in-tournament)
+## 🔴 Live update (in-tournament — post group stage, Round of 32 underway)
 
-`forecast.py` now ingests results already played from `wc_2026_results.csv`
-(`group,team1,score1,score2,team2,date`). If the file is absent it falls back to the
-exact pre-tournament forecast above.
+`forecast.py` ingests every match already played from `wc_2026_results.csv`
+(`stage,team1,score1,score2,team2,winner,date`) — **76 matches** as of June 30 (all 72
+group games + the first 4 Round-of-32 ties).
 
 Live results are used **two ways**:
 
-1. **Locked group games.** A played match keeps its real scoreline in every one of the
-   50,000 simulations; only unplayed group games are still simulated.
+1. **Locked outcomes.** A played knockout tie keeps its real winner in all 50,000
+   simulations (penalty results respected); only matches not yet played are simulated.
 2. **Dynamic Elo.** Each played result nudges that team's Elo via the standard World
    Football Elo update (`We = 1/(1+10^(−Δ/400))`, K=60 scaled by goal margin, +100 home
-   advantage for hosts), so current form flows into the knockout-stage sims too.
+   advantage for hosts, shoot-outs counted as draws), so current form drives the sims.
 
-After matchday 1 (20 games, Groups A–J), Spain's 0–0 vs Cape Verde (−27 Elo) and
-Argentina's 3–0 (Messi hat-trick) flip the favourite: **Argentina 24.6%**, Spain 19.7%.
+The simulation now runs over the **real official 2026 bracket** (R32 → R16 → QF → SF →
+Final), rebuilt from the actual qualifiers, rather than a representative draw.
+
+**State that reshaped the forecast:** Germany and Netherlands are already out (both lost
+R32 on penalties, to Paraguay and Morocco). France stormed its group (+38 Elo) and Spain
+landed in the same half — so the model now reads **Argentina ~24% champion, Spain ~22%,
+France ~20%**, with Brazil edging England for the 4th semi-final slot because the two share
+a quarter-final.
 
 ## ⚠️ Caveats
 

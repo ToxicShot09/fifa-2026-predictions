@@ -3,41 +3,40 @@
 A Monte Carlo simulation that predicts the 2026 FIFA World Cup by playing the entire
 tournament **50,000 times** using an Elo-powered Poisson goals model on the real group draw.
 
-> **TL;DR** 🇪🇸 **Spain** comes out as the most likely champion (~24.7%), edging
-> 🇦🇷 **Argentina** in a projected final. But football is high-variance — even the
-> favourite loses ~75% of the time, so treat this as a probability ranking, not a prophecy.
+> **TL;DR** With the group stage complete and the Round of 32 underway, 🇦🇷 **Argentina**
+> is the most likely champion (~24%), narrowly ahead of 🇪🇸 **Spain** (~22%) and 🇫🇷 **France**
+> (~20%) — the two of whom share a loaded top half. Football is high-variance — even the
+> favourite wins only ~1 time in 4 — so treat this as a probability ranking, not a prophecy.
 
 ---
 
-## 🎯 Results
+## 🎯 Current predictions (live — post group stage, R32 underway)
 
 ### Predicted Champion
-🇪🇸 **Spain** — 24.7% win probability
+🇦🇷 **Argentina** — 24.4% win probability
 
 ### Predicted Final
-🇪🇸 Spain  vs  🇦🇷 Argentina
+🇦🇷 Argentina  vs  🇫🇷 France
 
 ### Predicted Top 4 (Semi-finalists)
 | | Country | Reaches semis |
 |---|---|---|
-| 🇦🇷 | Argentina | 73% |
-| 🇪🇸 | Spain | 68% |
-| 🇫🇷 | France | 57% |
-| 🇵🇹 | Portugal | 46% |
+| 🇫🇷 | France | 61% |
+| 🇦🇷 | Argentina | 61% |
+| 🇪🇸 | Spain | 53% |
+| 🇧🇷 | Brazil | 45% |
 
-### Win probability — Top 10
+### Win probability — contenders
 | Country | Elo | Win title | Reach final |
 |---|---|---|---|
-| 🇪🇸 Spain | 2157 | **24.7%** | 51% |
-| 🇦🇷 Argentina | 2115 | **23.3%** | 60% |
-| 🇫🇷 France | 2063 | **13.6%** | 41% |
-| 🇵🇹 Portugal | 1989 | 5.6% | 25% |
-| 🏴󠁧󠁢󠁥󠁮󠁧󠁿 England | 2024 | 5.4% | 19% |
-| 🇨🇴 Colombia | 1982 | 5.4% | 24% |
-| 🇧🇷 Brazil | 1991 | 5.3% | 23% |
-| 🇳🇱 Netherlands | 1959 | 3.6% | 16% |
-| 🇩🇪 Germany | 1910 | 2.4% | 17% |
-| 🇺🇾 Uruguay | 1890 | 1.8% | 14% |
+| 🇦🇷 Argentina | 2141 | **24.4%** | 41% |
+| 🇪🇸 Spain | 2147 | **21.6%** | 35% |
+| 🇫🇷 France | 2101 | **19.8%** | 35% |
+| 🇧🇷 Brazil | 2023 | 9.5% | 21% |
+| 🏴󠁧󠁢󠁥󠁮󠁧󠁿 England | 2041 | 8.0% | 17% |
+| 🇨🇴 Colombia | 2000 | 5.0% | 12% |
+
+> Already eliminated: 🇩🇪 Germany and 🇳🇱 Netherlands (both lost the R32 on penalties).
 
 ---
 
@@ -64,8 +63,8 @@ counts who wins most often.
 3. **Tournament structure.** The real 12-group draw → round-robin → top 2 + 8 best
    third-placed teams → fixed group-position knockout bracket (R32 → R16 → QF → SF → Final).
 
-4. **Monte Carlo.** The entire tournament is simulated 50,000 times with fresh randomness.
-   `Spain 24.7%` means Spain won ~12,350 of the 50,000 simulated tournaments.
+4. **Monte Carlo.** The remaining bracket is simulated 50,000 times with fresh randomness.
+   `Argentina 24.4%` means Argentina won ~12,200 of the 50,000 simulated tournaments.
 
 ### Why this method?
 | Approach | Verdict |
@@ -132,12 +131,8 @@ a quarter-final.
 
 ## ⚠️ Caveats
 
-- **High variance.** A 24.7% favourite *loses* the tournament ~75% of the time. This is a
+- **High variance.** A ~24% favourite *loses* the tournament ~75% of the time. This is a
   ranked probability list, not a guarantee.
-- **Pre-tournament strength.** The forecast is based on current team strength and does not
-  ingest matchdays already played once the tournament is underway.
-- **Approximate bracket.** Uses a representative group-position knockout bracket, not FIFA's
-  exact official slotting — fine for probabilities, but a specific team's path may differ.
 - **Model assumptions.** Poisson goals are treated as independent; real matches aren't
   (injuries, momentum, red cards, fatigue). Poisson also slightly underestimates draws.
 
